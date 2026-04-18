@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+bundle install
+(cd test/dummy && bundle exec rails db:test:prepare 2>/dev/null || true)
