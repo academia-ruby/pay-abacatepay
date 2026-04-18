@@ -103,4 +103,12 @@ ActiveRecord::Schema.define(version: 2025_04_15_151129) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
+
+  create_table "pay_abacatepay_processed_webhooks", force: :cascade do |t|
+    t.string "event_type", null: false
+    t.string "event_id", null: false
+    t.datetime "processed_at", null: false
+    t.datetime "created_at", null: false
+    t.index ["event_type", "event_id"], name: "index_pay_abacatepay_processed_webhooks_unique", unique: true
+  end
 end

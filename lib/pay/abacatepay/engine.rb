@@ -21,8 +21,8 @@ module Pay
         end
       end
 
-      config.before_initialize do
-        Pay::Abacatepay.configure_webhooks if Pay::Abacatepay.enabled?
+      initializer "pay_abacatepay.webhooks", after: "pay_abacatepay.register_processor" do
+        Pay::Abacatepay.configure_webhooks
       end
 
       config.to_prepare do

@@ -1,6 +1,7 @@
 module Pay
   module Abacatepay
     module Webhooks
+      autoload :Event, "pay/abacatepay/webhooks/event"
       autoload :CheckoutCompleted, "pay/abacatepay/webhooks/checkout_completed"
       autoload :CheckoutRefunded, "pay/abacatepay/webhooks/checkout_refunded"
       autoload :CheckoutDisputed, "pay/abacatepay/webhooks/checkout_disputed"

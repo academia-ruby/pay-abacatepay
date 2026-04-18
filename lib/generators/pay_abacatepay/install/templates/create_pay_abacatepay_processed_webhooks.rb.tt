@@ -1,0 +1,15 @@
+class CreatePayAbacatepayProcessedWebhooks < ActiveRecord::Migration[<%= ActiveRecord::Migration.current_version %>]
+  def change
+    create_table :pay_abacatepay_processed_webhooks do |t|
+      t.string :event_type, null: false
+      t.string :event_id, null: false
+      t.datetime :processed_at, null: false
+      t.datetime :created_at, null: false
+    end
+
+    add_index :pay_abacatepay_processed_webhooks,
+      [:event_type, :event_id],
+      unique: true,
+      name: "index_pay_abacatepay_processed_webhooks_unique"
+  end
+end

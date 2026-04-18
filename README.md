@@ -11,8 +11,8 @@ AbacatePay processor for the [Pay gem](https://github.com/pay-rails/pay) (Rails 
 
 - [x] Customer creation
 - [ ] Charge (PIX) — planned
-- [ ] Subscriptions — planned
-- [x] Webhooks — infrastructure only (handlers arrive in later phases)
+- [x] Subscriptions — webhook-driven lifecycle + cancel (gaps below)
+- [x] Webhooks — infrastructure + subscription handlers; checkout/transparent handlers arrive later
 - [ ] Payment methods — planned
 
 ## Installation
@@ -76,6 +76,46 @@ AbacatePay's `POST /v2/customers/create` is idempotent by `taxId`: submitting th
 
 AbacatePay does not expose a customer update endpoint. `update_api_record` is a **no-op with a warning**. If you rename a user, the AbacatePay record will not reflect it until the API grows `PATCH /v2/customers`.
 
+## Subscriptions
+
+Subscriptions are managed primarily through webhooks: when AbacatePay delivers `subscription.completed`, `subscription.renewed`, or `subscription.cancelled`, the gem creates or updates the corresponding `Pay::Subscription` and, for paid events, the matching `Pay::Charge` (with `data.payment.id` as `processor_id`).
+
+### Install the dedup migration
+
+Before deploying, run the generator and migrate:
+
+```bash
+bin/rails generate pay_abacatepay:install:migrations
+bin/rails db:migrate
+```
+
+The migration creates `pay_abacatepay_processed_webhooks`, a permanent table with a unique `(event_type, event_id)` index. It protects against double-processing on AbacatePay retries — `Pay::Webhook` records are destroyed after processing, so without this table a retry that arrives after the original ACK would create a duplicate `Pay::Charge`.
+
+### Supported operations
+
+| Operation | Support |
+|---|---|
+| Webhook-driven `Pay::Subscription` create/update | yes |
+| `Pay::Charge` creation per renewal | yes, idempotent via `processor_id = data.payment.id` |
+| `#cancel_now!` (immediate cancellation) | yes (calls `POST /v2/subscriptions/cancel` directly — SDK does not cover) |
+| `#cancel` | delegates to `#cancel_now!` with a `Rails.logger.warn`; see gap below |
+
+### Known gaps
+
+AbacatePay's API is narrower than Stripe's, so several `Pay::Subscription` affordances are intentionally not implemented:
+
+- **No cancel-at-period-end.** AbacatePay cancels immediately. `#cancel` delegates to `#cancel_now!` and logs a warning so code paths that assume Stripe-like grace periods notice the divergence.
+- **No plan swap.** `#swap` raises `NotImplementedError`. Cancel and create a new subscription instead.
+- **No resume.** `#resume` raises `NotImplementedError`. Cancelled subscriptions cannot be reactivated.
+- **No quantity changes.** `#change_quantity` raises `NotImplementedError`.
+- **No `past_due` state.** AbacatePay does not emit payment-failure events, so `#past_due?` always returns `false`.
+- **No `Subscriptions.retrieve` / `Subscriptions.cancel` in the SDK (v0.2.x).** Both calls are made via the SDK's Faraday client directly. Filed upstream.
+- **`subscription.trial_started`.** Handler is registered but raises `NotImplementedError` — the event is not listed in `AbacatePay::Enums::Webhooks::EventTypes`, so we fail-loud until it is confirmed.
+
+### Webhook idempotency
+
+Each event has a permanent `id` (e.g. `log_abc123xyz`). The handler wraps its side effects in `Pay::Abacatepay::ProcessedWebhook.process!(event_type:, event_id:)`, which relies on the unique index to short-circuit retries. A second delivery of the same event returns `:already_processed` and produces no side effects.
+
 ## Webhooks
 
 The gem mounts `POST /pay/webhooks/abacatepay` on the Pay engine (so the full URL is whatever `Pay.routes_path` resolves to — `/pay/webhooks/abacatepay` by default). Point AbacatePay's dashboard webhook at that path on your public host.
@@ -118,10 +158,10 @@ Note: Idempotency is scoped to the window between reception and processing (`Pay
 | `transparent.refunded` | `Pay::Abacatepay::Webhooks::TransparentRefunded` | stub (Fase 4) |
 | `transparent.disputed` | `Pay::Abacatepay::Webhooks::TransparentDisputed` | stub (Fase 5) |
 | `transparent.lost` | `Pay::Abacatepay::Webhooks::TransparentLost` | stub (Fase 5) |
-| `subscription.completed` | `Pay::Abacatepay::Webhooks::SubscriptionCompleted` | stub (Fase 3) |
-| `subscription.cancelled` | `Pay::Abacatepay::Webhooks::SubscriptionCancelled` | stub (Fase 3) |
-| `subscription.renewed` | `Pay::Abacatepay::Webhooks::SubscriptionRenewed` | stub (Fase 3) |
-| `subscription.trial_started` | `Pay::Abacatepay::Webhooks::SubscriptionTrialStarted` | stub (Fase 3) |
+| `subscription.completed` | `Pay::Abacatepay::Webhooks::SubscriptionCompleted` | active |
+| `subscription.cancelled` | `Pay::Abacatepay::Webhooks::SubscriptionCancelled` | active |
+| `subscription.renewed` | `Pay::Abacatepay::Webhooks::SubscriptionRenewed` | active |
+| `subscription.trial_started` | `Pay::Abacatepay::Webhooks::SubscriptionTrialStarted` | raises `NotImplementedError` (see gap) |
 | `payout.completed` | `Pay::Abacatepay::Webhooks::PayoutCompleted` | stub |
 | `payout.failed` | `Pay::Abacatepay::Webhooks::PayoutFailed` | stub |
 | `transfer.completed` | `Pay::Abacatepay::Webhooks::TransferCompleted` | stub |

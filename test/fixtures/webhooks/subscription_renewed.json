@@ -1,6 +1,6 @@
 {
-  "id": "log_completed_abc123",
-  "event": "subscription.completed",
+  "id": "log_abc123xyz",
+  "event": "subscription.renewed",
   "apiVersion": 2,
   "devMode": false,
   "data": {
@@ -11,8 +11,8 @@
       "method": "CARD",
       "status": "ACTIVE",
       "frequency": "MONTHLY",
-      "createdAt": "2026-04-01T20:00:00.000Z",
-      "updatedAt": "2026-04-01T20:00:05.000Z",
+      "createdAt": "2024-12-06T20:00:00.000Z",
+      "updatedAt": "2025-01-06T20:00:05.000Z",
       "canceledAt": null,
       "cancelPolicy": null,
       "cancelledDueTo": null
@@ -24,25 +24,25 @@
       "taxId": "12345678000190"
     },
     "payment": {
-      "id": "char_first789",
+      "id": "char_xyz789",
       "externalId": "pedido-456",
       "amount": 2990,
       "paidAmount": 2990,
       "platformFee": 100,
       "status": "PAID",
       "methods": ["CARD"],
-      "receiptUrl": "https://app.abacatepay.com/receipt/char_first789",
-      "createdAt": "2026-04-01T20:00:00.000Z",
-      "updatedAt": "2026-04-01T20:00:05.000Z"
+      "receiptUrl": "https://app.abacatepay.com/receipt/char_xyz789",
+      "createdAt": "2025-01-06T20:00:00.000Z",
+      "updatedAt": "2025-01-06T20:00:05.000Z"
     },
     "payerInformation": {
       "method": "CARD",
       "CARD": {"number": "1234", "brand": "VISA"}
     },
     "checkout": {
-      "id": "bill_firstxyz789",
+      "id": "bill_renewxyz789",
       "externalId": null,
-      "url": "https://app.abacatepay.com/pay/bill_firstxyz789",
+      "url": "https://app.abacatepay.com/pay/bill_renewxyz789",
       "amount": 2990,
       "paidAmount": 2990,
       "platformFee": 100,
@@ -51,9 +51,9 @@
       "status": "PAID",
       "methods": ["CARD"],
       "customerId": "cust_def456",
-      "receiptUrl": "https://app.abacatepay.com/receipt/bill_firstxyz789",
-      "createdAt": "2026-04-01T19:59:57.819Z",
-      "updatedAt": "2026-04-01T20:00:05.000Z"
+      "receiptUrl": "https://app.abacatepay.com/receipt/bill_renewxyz789",
+      "createdAt": "2025-01-06T19:59:57.819Z",
+      "updatedAt": "2025-01-06T20:00:05.000Z"
     }
   }
 }

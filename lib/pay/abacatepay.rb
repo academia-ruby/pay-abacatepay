@@ -13,6 +13,8 @@ module Pay
     extend Pay::Env
 
     autoload :Customer, "pay/abacatepay/customer"
+    autoload :ProcessedWebhook, "pay/abacatepay/processed_webhook"
+    autoload :Subscription, "pay/abacatepay/subscription"
     autoload :Webhooks, "pay/abacatepay/webhooks"
 
     # Enabled when the processor is registered and the SDK constant is present.

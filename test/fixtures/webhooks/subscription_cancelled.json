@@ -1,0 +1,27 @@
+{
+  "id": "log_cancelled_xyz",
+  "event": "subscription.cancelled",
+  "apiVersion": 2,
+  "devMode": false,
+  "data": {
+    "subscription": {
+      "id": "subs_tAFqDWBhcEYTjQh2K0ZYDHau",
+      "amount": 2990,
+      "currency": "BRL",
+      "method": "CARD",
+      "status": "CANCELLED",
+      "frequency": "MONTHLY",
+      "createdAt": "2024-12-06T20:00:00.000Z",
+      "updatedAt": "2026-04-10T14:30:00.000Z",
+      "canceledAt": "2026-04-10T14:30:00.000Z",
+      "cancelPolicy": "IMMEDIATE",
+      "cancelledDueTo": "CUSTOMER_REQUEST"
+    },
+    "customer": {
+      "id": "cust_def456",
+      "name": "Maria Santos",
+      "email": "maria@exemplo.com",
+      "taxId": "12345678000190"
+    }
+  }
+}

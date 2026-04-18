@@ -14,9 +14,9 @@ module Pay
 
         event_hash = JSON.parse(payload)
         event_type = event_hash["event"] || event_hash["type"]
-        data_id = event_hash.dig("data", "id")
+        event_id = event_hash["id"] || event_hash.dig("data", "id")
 
-        return head(:ok) if already_recorded?(event_type, data_id)
+        return head(:ok) if already_recorded?(event_type, event_id)
 
         queue_event(event_type, event_hash)
         head :ok
@@ -28,13 +28,13 @@ module Pay
 
       private
 
-      def already_recorded?(event_type, data_id)
-        return false if data_id.blank?
+      def already_recorded?(event_type, event_id)
+        return false if event_id.blank?
 
         Pay::Webhook
           .where(processor: "abacatepay", event_type: event_type)
           .find_each
-          .any? { |w| w.event.is_a?(Hash) && w.event.dig("data", "id") == data_id.to_s }
+          .any? { |w| w.event.is_a?(Hash) && (w.event["id"] == event_id.to_s || w.event.dig("data", "id") == event_id.to_s) }
       end
 
       def queue_event(event_type, event_hash)
