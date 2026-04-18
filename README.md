@@ -12,7 +12,7 @@ AbacatePay processor for the [Pay gem](https://github.com/pay-rails/pay) (Rails 
 - [x] Customer creation
 - [ ] Charge (PIX) — planned
 - [ ] Subscriptions — planned
-- [ ] Webhooks — planned
+- [x] Webhooks — infrastructure only (handlers arrive in later phases)
 - [ ] Payment methods — planned
 
 ## Installation
@@ -75,6 +75,66 @@ AbacatePay's `POST /v2/customers/create` is idempotent by `taxId`: submitting th
 ### Updates
 
 AbacatePay does not expose a customer update endpoint. `update_api_record` is a **no-op with a warning**. If you rename a user, the AbacatePay record will not reflect it until the API grows `PATCH /v2/customers`.
+
+## Webhooks
+
+The gem mounts `POST /pay/webhooks/abacatepay` on the Pay engine (so the full URL is whatever `Pay.routes_path` resolves to — `/pay/webhooks/abacatepay` by default). Point AbacatePay's dashboard webhook at that path on your public host.
+
+### Secret and signature
+
+Each webhook created in AbacatePay's dashboard has its own `secret`. Expose it to the gem via Rails credentials or environment:
+
+```yaml
+# config/credentials.yml.enc
+abacatepay:
+  webhook_secret: wsec_xxxxx
+```
+
+Or set `ABACATEPAY_WEBHOOK_SECRET` in the environment.
+
+Every incoming request is verified with **HMAC-SHA256** over the raw request body. The expected header is `X-Webhook-Signature`. Verification happens before any parsing or persistence; the gem delegates to the official SDK's `AbacatePay::Webhooks.verify!`.
+
+### Response codes
+
+| Scenario | Status |
+|---|---|
+| Valid signature + known event | `200 OK` |
+| Valid signature + unknown event type | `200 OK` (ignored, no record) |
+| Duplicate delivery (same `data.id`, same type) while a previous copy is still queued | `200 OK` (dedup, no double-processing) |
+| Missing or invalid `X-Webhook-Signature` | `401 Unauthorized` |
+| Malformed JSON | `400 Bad Request` |
+
+Note: Idempotency is scoped to the window between reception and processing (`Pay::Webhook` records are destroyed by `Pay::Webhooks::ProcessJob#process!`). AbacatePay retries that arrive after a successful handler run will be re-processed; handlers must therefore be individually idempotent — or upgrade this strategy in a later phase.
+
+### Supported events
+
+| Event | Handler | Status |
+|---|---|---|
+| `checkout.completed` | `Pay::Abacatepay::Webhooks::CheckoutCompleted` | stub (Fase 4) |
+| `checkout.refunded` | `Pay::Abacatepay::Webhooks::CheckoutRefunded` | stub (Fase 4) |
+| `checkout.disputed` | `Pay::Abacatepay::Webhooks::CheckoutDisputed` | stub (Fase 5) |
+| `checkout.lost` | `Pay::Abacatepay::Webhooks::CheckoutLost` | stub (Fase 5) |
+| `transparent.completed` | `Pay::Abacatepay::Webhooks::TransparentCompleted` | stub (Fase 4) |
+| `transparent.refunded` | `Pay::Abacatepay::Webhooks::TransparentRefunded` | stub (Fase 4) |
+| `transparent.disputed` | `Pay::Abacatepay::Webhooks::TransparentDisputed` | stub (Fase 5) |
+| `transparent.lost` | `Pay::Abacatepay::Webhooks::TransparentLost` | stub (Fase 5) |
+| `subscription.completed` | `Pay::Abacatepay::Webhooks::SubscriptionCompleted` | stub (Fase 3) |
+| `subscription.cancelled` | `Pay::Abacatepay::Webhooks::SubscriptionCancelled` | stub (Fase 3) |
+| `subscription.renewed` | `Pay::Abacatepay::Webhooks::SubscriptionRenewed` | stub (Fase 3) |
+| `subscription.trial_started` | `Pay::Abacatepay::Webhooks::SubscriptionTrialStarted` | stub (Fase 3) |
+| `payout.completed` | `Pay::Abacatepay::Webhooks::PayoutCompleted` | stub |
+| `payout.failed` | `Pay::Abacatepay::Webhooks::PayoutFailed` | stub |
+| `transfer.completed` | `Pay::Abacatepay::Webhooks::TransferCompleted` | stub |
+| `transfer.failed` | `Pay::Abacatepay::Webhooks::TransferFailed` | stub |
+
+To override or extend a handler from your own app, subscribe after the gem registers its defaults:
+
+```ruby
+# config/initializers/pay.rb
+Pay::Webhooks.configure do |events|
+  events.subscribe "abacatepay.subscription.renewed", ->(event) { MyJob.perform_later(event) }
+end
+```
 
 ## Development
 
