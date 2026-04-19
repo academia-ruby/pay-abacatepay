@@ -1,0 +1,40 @@
+{
+  "id": "log_refund1",
+  "event": "checkout.refunded",
+  "apiVersion": 2,
+  "devMode": false,
+  "data": {
+    "customer": {
+      "id": "cust_def456",
+      "name": "Maria Santos",
+      "email": "maria@exemplo.com",
+      "taxId": "12345678000190"
+    },
+    "payment": {
+      "id": "char_onetime789",
+      "externalId": "order-onetime-789",
+      "amount": 5000,
+      "paidAmount": 5000,
+      "platformFee": 150,
+      "status": "REFUNDED",
+      "methods": ["PIX"],
+      "createdAt": "2026-04-19T10:00:00.000Z",
+      "updatedAt": "2026-04-19T12:00:00.000Z"
+    },
+    "checkout": {
+      "id": "chk_onetime789",
+      "externalId": "order-onetime-789",
+      "url": "https://app.abacatepay.com/pay/chk_onetime789",
+      "amount": 5000,
+      "paidAmount": 5000,
+      "platformFee": 150,
+      "frequency": "ONE_TIME",
+      "items": [{"id": "prod_avulso1", "quantity": 1}],
+      "status": "REFUNDED",
+      "methods": ["PIX"],
+      "customerId": "cust_def456",
+      "createdAt": "2026-04-19T09:59:00.000Z",
+      "updatedAt": "2026-04-19T12:00:00.000Z"
+    }
+  }
+}

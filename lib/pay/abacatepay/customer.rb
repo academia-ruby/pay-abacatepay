@@ -42,8 +42,35 @@ module Pay
         nil
       end
 
-      def charge(amount, options = {})
-        raise NotImplementedError, "Pay::Abacatepay::Customer#charge is planned for a future release"
+      CheckoutResult = Struct.new(:id, :url, :charge, keyword_init: true)
+
+      def charge(amount, product_id: nil, methods: ["PIX", "CARD"], return_url: nil, completion_url: nil, external_id: nil, product_name: "Cobrança avulsa")
+        api_record unless processor_id?
+
+        product_id ||= create_one_time_product(amount, product_name)
+        resource = build_checkout_resource(
+          product_id: product_id,
+          quantity: 1,
+          methods: methods,
+          return_url: return_url,
+          completion_url: completion_url,
+          external_id: external_id
+        )
+        created = ::AbacatePay.checkouts.create(resource)
+
+        pay_charge = Pay::Abacatepay::Charge.find_or_initialize_by(
+          customer: self,
+          processor_id: created.id
+        )
+        pay_charge.amount = amount
+        pay_charge.currency ||= "BRL"
+        pay_charge.status = "pending"
+        pay_charge.checkout_url = created.url
+        pay_charge.save!
+
+        CheckoutResult.new(id: created.id, url: created.url, charge: pay_charge)
+      rescue ::AbacatePay::Error => e
+        raise Pay::Abacatepay::Error, e.message
       end
 
       def subscribe(name: Pay.default_product_name, plan: Pay.default_plan_name, **options)
@@ -55,6 +82,28 @@ module Pay
       end
 
       private
+
+      def create_one_time_product(amount, product_name)
+        resource = ::AbacatePay::Resources::Products.new(
+          external_id: "pay-abacatepay-#{SecureRandom.hex(8)}",
+          name: product_name,
+          price: amount,
+          currency: "BRL"
+        )
+        created = ::AbacatePay.products.create(resource)
+        created.id
+      end
+
+      def build_checkout_resource(product_id:, quantity:, methods:, return_url:, completion_url:, external_id:)
+        ::AbacatePay::Resources::Checkouts.new(
+          frequency: "ONE_TIME",
+          methods: methods,
+          metadata: {returnUrl: return_url, completionUrl: completion_url}.compact,
+          products: [{externalId: product_id, quantity: quantity}],
+          customer: {id: processor_id},
+          externalId: external_id
+        )
+      end
 
       def build_customer_resource(attrs)
         ::AbacatePay::Resources::Customers.new(

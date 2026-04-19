@@ -44,6 +44,14 @@ module Pay
           end
         end
 
+        test "created charge is STI Pay::Abacatepay::Charge (regression: Fase 3 bug)" do
+          SubscriptionRenewed.new.call(fixture)
+
+          charge = Pay::Charge.find_by!(processor_id: "char_xyz789")
+          assert_equal "Pay::Abacatepay::Charge", charge.type
+          assert_instance_of Pay::Abacatepay::Charge, charge
+        end
+
         test "handles out-of-order: renewed before completed (no existing subscription)" do
           @subscription.destroy!
 

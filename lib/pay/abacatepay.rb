@@ -12,6 +12,7 @@ module Pay
 
     extend Pay::Env
 
+    autoload :Charge, "pay/abacatepay/charge"
     autoload :Customer, "pay/abacatepay/customer"
     autoload :ProcessedWebhook, "pay/abacatepay/processed_webhook"
     autoload :Subscription, "pay/abacatepay/subscription"

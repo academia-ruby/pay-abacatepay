@@ -10,9 +10,11 @@ AbacatePay processor for the [Pay gem](https://github.com/pay-rails/pay) (Rails 
 ## Status
 
 - [x] Customer creation
-- [ ] Charge (PIX) — planned
+- [x] One-time charges — hosted checkout via `Customer#charge` + `checkout.*` webhooks
+- [ ] Transparent PIX (QR Code inline) — planned (Fase 5)
 - [x] Subscriptions — webhook-driven lifecycle + cancel (gaps below)
-- [x] Webhooks — infrastructure + subscription handlers; checkout/transparent handlers arrive later
+- [x] Webhooks — infrastructure + subscription and checkout handlers
+- [ ] Chargeback/dispute handling — planned (Fase 5)
 - [ ] Payment methods — planned
 
 ## Installation
@@ -75,6 +77,61 @@ AbacatePay's `POST /v2/customers/create` is idempotent by `taxId`: submitting th
 ### Updates
 
 AbacatePay does not expose a customer update endpoint. `update_api_record` is a **no-op with a warning**. If you rename a user, the AbacatePay record will not reflect it until the API grows `PATCH /v2/customers`.
+
+## One-time charges
+
+`Customer#charge` creates an AbacatePay **hosted checkout** and returns a struct you can redirect the payer to. A pending `Pay::Abacatepay::Charge` is persisted immediately so the app can render "payment in progress" UI and reconcile against the webhook later.
+
+```ruby
+result = user.payment_processor.charge(
+  5000,                                      # amount in cents
+  methods: ["PIX", "CARD"],                  # defaults shown
+  return_url: "https://app.example.com/cart",
+  completion_url: "https://app.example.com/thanks",
+  external_id: "order-1234"                  # optional, for your reconciliation
+)
+
+redirect_to result.url                       # send the user to AbacatePay
+result.id                                    # "chk_xxx" — also result.charge.processor_id
+result.charge                                # Pay::Abacatepay::Charge, status: "pending"
+```
+
+### Product on-the-fly
+
+AbacatePay's v2 `/checkouts/create` expects pre-registered products in `items[]`. When `product_id:` is omitted, the gem creates an ephemeral product via `POST /products/create` with `name: "Cobrança avulsa"` (overridable via `product_name:`). This costs an extra API call but keeps the host app's code free of product bookkeeping. Pass `product_id:` to skip this step when you manage products yourself.
+
+### Completion flow
+
+Once the payer completes the checkout, AbacatePay delivers a `checkout.completed` webhook. The handler:
+
+1. Skips the event if `data.checkout.frequency != "ONE_TIME"` — subscription payments are handled by `subscription.renewed` (see [Subscriptions](#subscriptions)).
+2. Locates the `Pay::Customer` by `processor_id` (no auto-creation — the customer must already exist from the app signup flow).
+3. Updates the pending `Pay::Abacatepay::Charge` (same `processor_id` as `result.id`) to `status: "paid"`, filling in `amount_refunded`, `application_fee_amount`, and `created_at`. If the checkout originated outside `Customer#charge`, a new charge is created instead.
+
+### Refunds
+
+AbacatePay **does not expose a programmatic refund endpoint** (confirmed in SDK v0.2.0 and in the public API docs as of April 2026). Calling `Pay::Abacatepay::Charge#refund!` raises `Pay::Abacatepay::Error` with a message pointing you to the dashboard.
+
+```
+AbacatePay does not expose a refund endpoint. Process the refund in the
+AbacatePay dashboard; the checkout.refunded webhook will update this
+Pay::Charge automatically.
+```
+
+When the refund is issued in the dashboard, AbacatePay delivers `checkout.refunded`; the gem updates `amount_refunded` and `status: "refunded"` on the matching charge. If the charge is not found (refund for a checkout the app never registered), the handler logs a warning and no-ops.
+
+### Status mapping
+
+`Pay::Abacatepay::Charge` stores status in `data` via `store_accessor`. The mapping is intentionally narrow:
+
+| AbacatePay | `Pay::Abacatepay::Charge#status` |
+|---|---|
+| `PENDING` | `"pending"` |
+| `PAID` | `"paid"` |
+| `REFUNDED` | `"refunded"` |
+| `DISPUTED` | `"disputed"` (see Fase 5) |
+| `EXPIRED` | *(no charge is created — the payment never succeeded)* |
+| `CANCELLED` | *(no charge is created)* |
 
 ## Subscriptions
 
@@ -150,8 +207,8 @@ Note: Idempotency is scoped to the window between reception and processing (`Pay
 
 | Event | Handler | Status |
 |---|---|---|
-| `checkout.completed` | `Pay::Abacatepay::Webhooks::CheckoutCompleted` | stub (Fase 4) |
-| `checkout.refunded` | `Pay::Abacatepay::Webhooks::CheckoutRefunded` | stub (Fase 4) |
+| `checkout.completed` | `Pay::Abacatepay::Webhooks::CheckoutCompleted` | active (one-time only; subscription payments skipped) |
+| `checkout.refunded` | `Pay::Abacatepay::Webhooks::CheckoutRefunded` | active |
 | `checkout.disputed` | `Pay::Abacatepay::Webhooks::CheckoutDisputed` | stub (Fase 5) |
 | `checkout.lost` | `Pay::Abacatepay::Webhooks::CheckoutLost` | stub (Fase 5) |
 | `transparent.completed` | `Pay::Abacatepay::Webhooks::TransparentCompleted` | stub (Fase 4) |

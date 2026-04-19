@@ -1,0 +1,52 @@
+{
+  "id": "log_checkoutsub1",
+  "event": "checkout.completed",
+  "apiVersion": 2,
+  "devMode": false,
+  "data": {
+    "subscription": {
+      "id": "subs_tAFqDWBhcEYTjQh2K0ZYDHau",
+      "amount": 2990,
+      "currency": "BRL",
+      "method": "CARD",
+      "status": "ACTIVE",
+      "frequency": "MONTHLY",
+      "createdAt": "2026-04-19T09:00:00.000Z",
+      "updatedAt": "2026-04-19T09:05:00.000Z"
+    },
+    "customer": {
+      "id": "cust_def456",
+      "name": "Maria Santos",
+      "email": "maria@exemplo.com",
+      "taxId": "12345678000190"
+    },
+    "payment": {
+      "id": "char_subfirst789",
+      "externalId": null,
+      "amount": 2990,
+      "paidAmount": 2990,
+      "platformFee": 100,
+      "status": "PAID",
+      "methods": ["CARD"],
+      "receiptUrl": "https://app.abacatepay.com/receipt/char_subfirst789",
+      "createdAt": "2026-04-19T09:00:00.000Z",
+      "updatedAt": "2026-04-19T09:05:00.000Z"
+    },
+    "checkout": {
+      "id": "chk_subfirst789",
+      "externalId": null,
+      "url": "https://app.abacatepay.com/pay/chk_subfirst789",
+      "amount": 2990,
+      "paidAmount": 2990,
+      "platformFee": 100,
+      "frequency": "SUBSCRIPTION",
+      "items": [{"id": "prod_plano1", "quantity": 1}],
+      "status": "PAID",
+      "methods": ["CARD"],
+      "customerId": "cust_def456",
+      "receiptUrl": "https://app.abacatepay.com/receipt/chk_subfirst789",
+      "createdAt": "2026-04-19T08:59:00.000Z",
+      "updatedAt": "2026-04-19T09:05:00.000Z"
+    }
+  }
+}

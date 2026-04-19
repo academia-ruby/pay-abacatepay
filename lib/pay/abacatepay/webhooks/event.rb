@@ -63,6 +63,20 @@ module Pay
 
         def checkout_id = data.dig("checkout", "id")
 
+        def checkout_frequency = data.dig("checkout", "frequency")
+
+        def checkout_status = data.dig("checkout", "status")
+
+        def checkout_url = data.dig("checkout", "url")
+
+        def checkout_amount_cents = data.dig("checkout", "amount")
+
+        def checkout_paid_amount_cents = data.dig("checkout", "paidAmount")
+
+        def checkout_platform_fee_cents = data.dig("checkout", "platformFee")
+
+        def checkout_methods = data.dig("checkout", "methods")
+
         def product_id = data.dig("checkout", "items", 0, "id")
 
         def interval

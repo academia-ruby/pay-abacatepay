@@ -34,11 +34,12 @@ module Pay
         end
 
         def create_initial_charge(customer, subscription, event)
-          customer.charges.find_or_create_by!(processor_id: event.charge_id) do |charge|
+          Pay::Abacatepay::Charge.find_or_create_by!(customer: customer, processor_id: event.charge_id) do |charge|
             charge.amount = event.paid_amount_cents || event.charge_amount_cents
             charge.currency = event.subscription_currency
             charge.application_fee_amount = event.platform_fee_cents
             charge.subscription_id = subscription.id
+            charge.status = "paid"
             charge.created_at = event.paid_at if event.paid_at
           end
         end
