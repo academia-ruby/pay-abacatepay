@@ -15,8 +15,6 @@ jobs:
         ruby: ["3.3", "3.4"]
     steps:
       - uses: actions/checkout@v4
-      - name: Clone abacatepay-ruby SDK (sibling path dep)
-        run: git clone https://github.com/AbacatePay/abacatepay-ruby-sdk.git ../abacatepay-ruby-sdk
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby }}
@@ -28,10 +26,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Clone abacatepay-ruby SDK (sibling path dep)
-        run: git clone https://github.com/AbacatePay/abacatepay-ruby-sdk.git ../abacatepay-ruby-sdk
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.4"
           bundler-cache: true
       - run: bundle exec standardrb
+
+  bundler-audit:
+    name: bundler-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+      - run: bundle exec bundler-audit check --update
