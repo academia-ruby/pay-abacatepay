@@ -43,9 +43,49 @@ class Pay::Abacatepay::WebhooksControllerTest < ActionDispatch::IntegrationTest
     assert_equal 0, Pay::Webhook.where(processor: "abacatepay").count
   end
 
-  test "missing X-Webhook-Signature header returns 401" do
+  test "missing X-Webhook-Signature header AND no body secret returns 401" do
     assert_no_enqueued_jobs do
       post ENDPOINT, params: @completed, headers: {"Content-Type" => "application/json"}
+    end
+
+    assert_response :unauthorized
+    assert_equal 0, Pay::Webhook.where(processor: "abacatepay").count
+  end
+
+  test "webhookSecret query parameter (official scheme) returns 200 when matching" do
+    post "#{ENDPOINT}?webhookSecret=#{ENV["ABACATEPAY_WEBHOOK_SECRET"]}",
+      params: @completed,
+      headers: {"Content-Type" => "application/json"}
+
+    assert_response :ok
+    assert_equal 1, Pay::Webhook.where(processor: "abacatepay").count
+  end
+
+  test "webhookSecret query parameter that does NOT match returns 401" do
+    assert_no_enqueued_jobs do
+      post "#{ENDPOINT}?webhookSecret=wrong-value",
+        params: @completed,
+        headers: {"Content-Type" => "application/json"}
+    end
+
+    assert_response :unauthorized
+    assert_equal 0, Pay::Webhook.where(processor: "abacatepay").count
+  end
+
+  test "plaintext webhookSecret in body (sandbox-style) returns 200 when matching" do
+    payload = JSON.parse(@completed).merge("webhookSecret" => ENV["ABACATEPAY_WEBHOOK_SECRET"]).to_json
+
+    post ENDPOINT, params: payload, headers: {"Content-Type" => "application/json"}
+
+    assert_response :ok
+    assert_equal 1, Pay::Webhook.where(processor: "abacatepay").count
+  end
+
+  test "plaintext webhookSecret in body that does NOT match returns 401" do
+    payload = JSON.parse(@completed).merge("webhookSecret" => "wrong-secret").to_json
+
+    assert_no_enqueued_jobs do
+      post ENDPOINT, params: payload, headers: {"Content-Type" => "application/json"}
     end
 
     assert_response :unauthorized
@@ -87,7 +127,7 @@ class Pay::Abacatepay::WebhooksControllerTest < ActionDispatch::IntegrationTest
   test "helper produces a signature accepted by the controller" do
     headers = abacatepay_webhook_headers(@completed)
 
-    assert_match(/\A[0-9a-f]{64}\z/, headers["X-Webhook-Signature"])
+    assert_match(%r{\A[A-Za-z0-9+/]+={0,2}\z}, headers["X-Webhook-Signature"])
     post ENDPOINT, params: @completed, headers: headers
     assert_response :ok
   end

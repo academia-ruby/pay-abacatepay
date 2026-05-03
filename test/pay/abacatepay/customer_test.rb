@@ -8,9 +8,9 @@ module Pay
 
       setup do
         @user = User.create!(
-          email: "daniel@invenio.dev.br",
-          name: "Daniel Moreira",
-          document: "123.456.789-01"
+          email: "test-customer@example.com",
+          name: "Maria Teste",
+          document: "390.533.447-05"
         )
       end
 
@@ -18,7 +18,7 @@ module Pay
         stub = stub_request(:post, CREATE_URL)
           .with(
             headers: {"Authorization" => "Bearer abc_dev_test_token"},
-            body: hash_including("email" => "daniel@invenio.dev.br", "taxId" => "12345678901")
+            body: hash_including("email" => "test-customer@example.com", "taxId" => "39053344705")
           )
           .to_return(
             status: 200,
@@ -27,9 +27,9 @@ module Pay
               data: {
                 id: "cust_abc123",
                 metadata: {
-                  name: "Daniel Moreira",
-                  email: "daniel@invenio.dev.br",
-                  taxId: "12345678901"
+                  name: "Maria Teste",
+                  email: "test-customer@example.com",
+                  taxId: "39053344705"
                 }
               }
             }.to_json
@@ -42,6 +42,16 @@ module Pay
         assert_requested stub
       end
 
+      # ── VCR-backed integration test: hits AbacatePay sandbox once, then replays ──
+      test "creates a real customer in the AbacatePay sandbox (VCR)" do
+        with_cassette("customer/create_real") do
+          result = @user.payment_processor.api_record
+
+          assert_match(/^cust_/, result.id)
+          assert_equal result.id, @user.payment_processor.reload.processor_id
+        end
+      end
+
       test "retrieves existing customer when processor_id already set" do
         @user.payment_processor.update!(processor_id: "cust_existing")
 
@@ -50,7 +60,7 @@ module Pay
           .to_return(
             status: 200,
             headers: {"Content-Type" => "application/json"},
-            body: {data: {id: "cust_existing", metadata: {email: "daniel@invenio.dev.br"}}}.to_json
+            body: {data: {id: "cust_existing", metadata: {email: "test-customer@example.com"}}}.to_json
           )
 
         result = @user.payment_processor.api_record
@@ -65,7 +75,7 @@ module Pay
           .to_return(
             status: 200,
             headers: {"Content-Type" => "application/json"},
-            body: {data: {id: "cust_preexisting", metadata: {email: "daniel@invenio.dev.br"}}}.to_json
+            body: {data: {id: "cust_preexisting", metadata: {email: "test-customer@example.com"}}}.to_json
           )
 
         result = @user.payment_processor.api_record
@@ -207,12 +217,54 @@ module Pay
         assert_raises(Pay::Abacatepay::Error) { @user.payment_processor.charge(5000) }
       end
 
+      test "#charge persists app-level metadata on Pay::Charge.metadata" do
+        @user.payment_processor.update!(processor_id: "cust_charge1")
+        stub_product_create
+        stub_checkout_create(id: "chk_meta1")
+
+        result = @user.payment_processor.charge(5000, metadata: {release_id: 42, release_slug: "release-x"})
+
+        assert_equal 42, result.charge.metadata["release_id"]
+        assert_equal "release-x", result.charge.metadata["release_slug"]
+      end
+
+      test "#charge does not touch metadata when not provided" do
+        @user.payment_processor.update!(processor_id: "cust_charge1")
+        stub_product_create
+        stub_checkout_create(id: "chk_nometa")
+
+        result = @user.payment_processor.charge(5000)
+
+        assert_nil result.charge.metadata
+      end
+
+      # ── VCR-backed: full charge round-trip in sandbox ──
+      # Stubs SecureRandom + Time.current so that externalId/external_id are
+      # deterministic across runs and the body matches the cassette exactly.
+      test "creates a real one-time charge in AbacatePay sandbox (VCR)" do
+        SecureRandom.stub :hex, "0f250588aac4845b" do
+          with_cassette("customer/charge_real_one_time") do
+            result = @user.payment_processor.charge(
+              199,
+              external_id: "vcr-test-charge-fixed",
+              metadata: {test_id: "vcr-cassette"}
+            )
+
+            assert_match(/^bill_|^chk_/, result.id)
+            assert_match(%r{^https://app\.abacatepay\.com/pay/}, result.url)
+            assert_equal "pending", result.charge.status
+            assert_equal 199, result.charge.amount
+            assert_equal "vcr-cassette", result.charge.metadata["test_id"]
+          end
+        end
+      end
+
       test "#charge creates customer via api_record when processor_id is absent" do
         create_stub = stub_request(:post, CREATE_URL)
           .to_return(
             status: 200,
             headers: {"Content-Type" => "application/json"},
-            body: {data: {id: "cust_autogen", metadata: {email: "daniel@invenio.dev.br"}}}.to_json
+            body: {data: {id: "cust_autogen", metadata: {email: "test-customer@example.com"}}}.to_json
           )
         stub_product_create
         stub_checkout_create

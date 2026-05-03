@@ -1,0 +1,70 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.abacatepay.com/v2/customers/create
+    body:
+      encoding: UTF-8
+      string: '{"name":"Maria Teste","email":"test-customer@example.com","taxId":"39053344705"}'
+    headers:
+      Content-Type:
+      - application/json
+      Authorization:
+      - Bearer <ABACATEPAY_API_KEY>
+      User-Agent:
+      - Faraday v2.14.1
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Sun, 03 May 2026 03:15:44 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Headers:
+      - Content-Type, Authorization, x-pdv-token
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, PATCH, DELETE, OPTIONS
+      Access-Control-Allow-Origin:
+      - "*"
+      Access-Control-Expose-Headers:
+      - "*"
+      Alt-Svc:
+      - h3=":443"; ma=86400
+      Ratelimit-Limit:
+      - '100'
+      Ratelimit-Remaining:
+      - '96'
+      Ratelimit-Reset:
+      - '1'
+      Vary:
+      - "*"
+      Via:
+      - 1.1 Caddy
+      Cf-Cache-Status:
+      - DYNAMIC
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=MQ9N%2F5GubX2%2Bjh1ktIScOG4YM4%2F2nTjPpHm398j3hHtibk%2BReS80GFUW%2FCWOY0zLXSIB31uKh15lQm%2Fc5KRNGVwX5cNZRxKo3l9JCgSfq8h%2BwrKixTUD8yxj7h3G7cSuvzm3CMI%3D"}]}'
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9f5c1a5bc83e74c3-GRU
+    body:
+      encoding: ASCII-8BIT
+      string: '{"success":true,"data":{"id":"cust_W6D0dFTwQcaCPuCpLFYSb2y0","devMode":true,"email":"operator@example.com","taxId":"39053344705","country":null,"name":"Test
+        User","cellphone":"00000000000","zipCode":null,"metadata":{}},"error":null}'
+  recorded_at: Sun, 03 May 2026 03:15:44 GMT
+recorded_with: VCR 6.4.0

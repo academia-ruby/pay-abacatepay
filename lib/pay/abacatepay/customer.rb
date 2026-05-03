@@ -44,7 +44,7 @@ module Pay
 
       CheckoutResult = Struct.new(:id, :url, :charge, keyword_init: true)
 
-      def charge(amount, product_id: nil, methods: ["PIX", "CARD"], return_url: nil, completion_url: nil, external_id: nil, product_name: "Cobrança avulsa")
+      def charge(amount, product_id: nil, methods: ["PIX", "CARD"], return_url: nil, completion_url: nil, external_id: nil, product_name: "Cobrança avulsa", metadata: nil)
         api_record unless processor_id?
 
         product_id ||= create_one_time_product(amount, product_name)
@@ -66,6 +66,7 @@ module Pay
         pay_charge.currency ||= "BRL"
         pay_charge.status = "pending"
         pay_charge.checkout_url = created.url
+        pay_charge.metadata = metadata if metadata.present?
         pay_charge.save!
 
         CheckoutResult.new(id: created.id, url: created.url, charge: pay_charge)

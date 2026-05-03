@@ -14,6 +14,7 @@ module Pay
 
     autoload :Charge, "pay/abacatepay/charge"
     autoload :Customer, "pay/abacatepay/customer"
+    autoload :PaymentMethod, "pay/abacatepay/payment_method"
     autoload :ProcessedWebhook, "pay/abacatepay/processed_webhook"
     autoload :Subscription, "pay/abacatepay/subscription"
     autoload :Webhooks, "pay/abacatepay/webhooks"

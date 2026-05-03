@@ -72,6 +72,24 @@ module Pay
           assert_equal 1, Pay::Abacatepay::Charge.where(processor_id: "chk_onetime789").count
           assert_equal "paid", Pay::Abacatepay::Charge.find_by(processor_id: "chk_onetime789").status
         end
+
+        test "preserves app-level metadata when transitioning a pending charge to paid" do
+          Pay::Abacatepay::Charge.create!(
+            customer: @pay_customer,
+            processor_id: "chk_onetime789",
+            amount: 5000,
+            currency: "BRL",
+            status: "pending",
+            metadata: {"release_id" => 42, "release_slug" => "release-x"}
+          )
+
+          CheckoutCompleted.new.call(one_time_fixture)
+
+          charge = Pay::Abacatepay::Charge.find_by!(processor_id: "chk_onetime789")
+          assert_equal "paid", charge.status
+          assert_equal 42, charge.metadata["release_id"]
+          assert_equal "release-x", charge.metadata["release_slug"]
+        end
       end
     end
   end

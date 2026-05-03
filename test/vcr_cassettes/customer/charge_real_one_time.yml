@@ -1,0 +1,203 @@
+---
+http_interactions:
+- request:
+    method: post
+    uri: https://api.abacatepay.com/v2/customers/create
+    body:
+      encoding: UTF-8
+      string: '{"name":"Maria Teste","email":"test-customer@example.com","taxId":"39053344705"}'
+    headers:
+      Content-Type:
+      - application/json
+      Authorization:
+      - Bearer <ABACATEPAY_API_KEY>
+      User-Agent:
+      - Faraday v2.14.1
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Sun, 03 May 2026 03:19:38 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Headers:
+      - Content-Type, Authorization, x-pdv-token
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, PATCH, DELETE, OPTIONS
+      Access-Control-Allow-Origin:
+      - "*"
+      Access-Control-Expose-Headers:
+      - "*"
+      Alt-Svc:
+      - h3=":443"; ma=86400
+      Ratelimit-Limit:
+      - '100'
+      Ratelimit-Remaining:
+      - '99'
+      Ratelimit-Reset:
+      - '1'
+      Vary:
+      - "*"
+      Via:
+      - 1.1 Caddy
+      Cf-Cache-Status:
+      - DYNAMIC
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=YqGBq0p00Chbq0WpYbrvv6hm8XByR9GhSETS1aaDzOJ%2B9bk495LG9TqD6HFr67sBk2npQqSiB%2BLJRD81PktyX09OLjlfzFnJAE00NNQbQOTgCRec4gsUKUNIsTPybKuqcu0SPT8%3D"}]}'
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9f5c200e686a794f-GRU
+    body:
+      encoding: ASCII-8BIT
+      string: '{"success":true,"data":{"id":"cust_W6D0dFTwQcaCPuCpLFYSb2y0","devMode":true,"email":"operator@example.com","taxId":"39053344705","country":null,"name":"Test
+        User","cellphone":"00000000000","zipCode":null,"metadata":{}},"error":null}'
+  recorded_at: Sun, 03 May 2026 03:19:38 GMT
+- request:
+    method: post
+    uri: https://api.abacatepay.com/v2/products/create
+    body:
+      encoding: UTF-8
+      string: '{"externalId":"pay-abacatepay-0f250588aac4845b","name":"Cobrança avulsa","price":199,"currency":"BRL"}'
+    headers:
+      Content-Type:
+      - application/json
+      Authorization:
+      - Bearer <ABACATEPAY_API_KEY>
+      User-Agent:
+      - Faraday v2.14.1
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Sun, 03 May 2026 03:19:38 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Headers:
+      - Content-Type, Authorization, x-pdv-token
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, PATCH, DELETE, OPTIONS
+      Access-Control-Allow-Origin:
+      - "*"
+      Access-Control-Expose-Headers:
+      - "*"
+      Alt-Svc:
+      - h3=":443"; ma=86400
+      Ratelimit-Limit:
+      - '100'
+      Ratelimit-Remaining:
+      - '98'
+      Ratelimit-Reset:
+      - '1'
+      Vary:
+      - "*"
+      Via:
+      - 1.1 Caddy
+      Cf-Cache-Status:
+      - DYNAMIC
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=oeMZxs2J6UfnGlGy6PoAY1HBLYistUrK8RSNIleRUrFtVgphvMeyaivJkCcVQvtyfWGcNe4%2BsbW4HmFh1GTzXAX2MvvEtEjyIhQG%2B%2BoEiCcJ7TMUAWyO9HLuoddL%2FQZBydTZXWA%3D"}]}'
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9f5c200f0840bc35-GRU
+    body:
+      encoding: ASCII-8BIT
+      string: !binary |-
+        eyJzdWNjZXNzIjp0cnVlLCJkYXRhIjp7ImlkIjoicHJvZF93bXNOTjV4VUxmcnRKbnp0UEVkMHRxU0giLCJleHRlcm5hbElkIjoicGF5LWFiYWNhdGVwYXktMGYyNTA1ODhhYWM0ODQ1YiIsIm5hbWUiOiJDb2JyYW7Dp2EgYXZ1bHNhIiwiZGVzY3JpcHRpb24iOiIiLCJpbWFnZVVybCI6bnVsbCwicHJpY2UiOjE5OSwiZGV2TW9kZSI6dHJ1ZSwiY3VycmVuY3kiOiJCUkwiLCJjcmVhdGVkQXQiOiIyMDI2LTA1LTAzVDAzOjE5OjM4LjEyNVoiLCJ1cGRhdGVkQXQiOiIyMDI2LTA1LTAzVDAzOjE5OjM4LjEyNVoiLCJzdGF0dXMiOiJBQ1RJVkUiLCJjeWNsZSI6bnVsbCwidHJpYWxEYXlzIjpudWxsfSwiZXJyb3IiOm51bGx9
+  recorded_at: Sun, 03 May 2026 03:19:38 GMT
+- request:
+    method: post
+    uri: https://api.abacatepay.com/v2/checkouts/create
+    body:
+      encoding: UTF-8
+      string: '{"frequency":"ONE_TIME","methods":["PIX","CARD"],"items":[{"id":"prod_wmsNN5xULfrtJnztPEd0tqSH","quantity":1}],"externalId":"vcr-test-charge-fixed","customerId":"cust_W6D0dFTwQcaCPuCpLFYSb2y0"}'
+    headers:
+      Content-Type:
+      - application/json
+      Authorization:
+      - Bearer <ABACATEPAY_API_KEY>
+      User-Agent:
+      - Faraday v2.14.1
+      Accept-Encoding:
+      - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
+      Accept:
+      - "*/*"
+  response:
+    status:
+      code: 200
+      message: OK
+    headers:
+      Date:
+      - Sun, 03 May 2026 03:19:38 GMT
+      Content-Type:
+      - application/json
+      Transfer-Encoding:
+      - chunked
+      Connection:
+      - keep-alive
+      Access-Control-Allow-Credentials:
+      - 'true'
+      Access-Control-Allow-Headers:
+      - Content-Type, Authorization, x-pdv-token
+      Access-Control-Allow-Methods:
+      - GET, POST, PUT, PATCH, DELETE, OPTIONS
+      Access-Control-Allow-Origin:
+      - "*"
+      Access-Control-Expose-Headers:
+      - "*"
+      Alt-Svc:
+      - h3=":443"; ma=86400
+      Ratelimit-Limit:
+      - '100'
+      Ratelimit-Remaining:
+      - '97'
+      Ratelimit-Reset:
+      - '1'
+      Vary:
+      - "*"
+      Via:
+      - 1.1 Caddy
+      Cf-Cache-Status:
+      - DYNAMIC
+      Nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      Report-To:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=jQWd1%2FFe2pCa2RcCJolWll0HX1UqDiWKlWytlwgE46IhG4e1HTYHjfrGLWvRtrSItyVh%2BDZQPsWL%2Fgnc2F9QHNXD9EWzqlcvRoB5P7%2BHfAkFRJ6WV7zhN1iXv51KEEuWSX90410%3D"}]}'
+      Server:
+      - cloudflare
+      Cf-Ray:
+      - 9f5c200faae80320-GRU
+    body:
+      encoding: ASCII-8BIT
+      string: '{"success":true,"data":{"id":"bill_EURhDAwx0eCBsrU4rbcqZXRM","externalId":"vcr-test-charge-fixed","url":"https://app.abacatepay.com/pay/bill_EURhDAwx0eCBsrU4rbcqZXRM","amount":199,"paidAmount":null,"platformFee":100,"items":[{"id":"prod_wmsNN5xULfrtJnztPEd0tqSH","quantity":1}],"status":"PENDING","methods":["PIX","CARD"],"frequency":"ONE_TIME","coupons":[],"devMode":true,"customerId":"cust_W6D0dFTwQcaCPuCpLFYSb2y0","returnUrl":null,"completionUrl":null,"receiptUrl":null,"metadata":null,"createdAt":"2026-05-03T03:19:38.245Z","updatedAt":"2026-05-03T03:19:38.245Z","trialDays":null,"trialEndsAt":null,"nextChargeAt":null,"card":{"maxInstallments":1},"upSellProductId":null},"error":null}'
+  recorded_at: Sun, 03 May 2026 03:19:38 GMT
+recorded_with: VCR 6.4.0
