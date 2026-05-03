@@ -2,9 +2,9 @@ source "https://rubygems.org"
 
 gemspec
 
-# Local path dep while SDK v0.2.0 is not yet published.
-# Replace with `gem "abacatepay-ruby", "~> 0.2"` once the SDK is released to rubygems.
-gem "abacatepay-ruby", path: "../abacatepay-ruby-sdk"
+# Forked SDK with API/webhook compliance fixes (PR pending upstream).
+# Replace with `gem "abacatepay-ruby", "~> 0.2"` once upstream merges + publishes.
+gem "abacatepay-ruby", github: "academia-ruby/abacatepay-ruby-sdk", branch: "fix/strict-spec-compliance"
 
 gem "rake", "~> 13.0"
 gem "sqlite3"
