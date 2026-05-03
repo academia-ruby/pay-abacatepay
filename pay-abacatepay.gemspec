@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
 
   spec.summary = "AbacatePay processor for the Pay gem (Rails payments engine)."
   spec.description = "Community-maintained AbacatePay adapter for pay-rails/pay. Not affiliated with AbacatePay."
-  spec.homepage = "https://github.com/danielmoreira/pay-abacatepay"
+  spec.homepage = "https://github.com/academia-ruby/pay-abacatepay"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.3.0"
 
