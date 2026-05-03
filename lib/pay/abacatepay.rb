@@ -12,11 +12,10 @@ module Pay
 
     extend Pay::Env
 
-    autoload :Charge, "pay/abacatepay/charge"
-    autoload :Customer, "pay/abacatepay/customer"
-    autoload :PaymentMethod, "pay/abacatepay/payment_method"
-    autoload :ProcessedWebhook, "pay/abacatepay/processed_webhook"
-    autoload :Subscription, "pay/abacatepay/subscription"
+    # AR models (Charge, Customer, PaymentMethod, ProcessedWebhook, Subscription)
+    # live in app/models/pay/abacatepay/ — Zeitwerk autoloads them from the host
+    # app, which is required so STI subclasses get reloaded together with their
+    # superclass (Pay::Customer/Charge/...) during dev reloads.
     autoload :Webhooks, "pay/abacatepay/webhooks"
 
     # Enabled when the processor is registered and the SDK constant is present.
