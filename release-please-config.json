@@ -8,8 +8,7 @@
       "changelog-path": "CHANGELOG.md",
       "include-component-in-tag": false,
       "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": false,
-      "release-as": "0.1.0.pre.1"
+      "bump-patch-for-minor-pre-major": false
     }
   }
 }
