@@ -7,6 +7,20 @@ module Pay
         "subscription.cancelled" => "canceled"
       }.freeze
 
+      # Maps AbacatePay API checkout-like statuses (Resources::Subscriptions
+      # reuses Enums::Checkouts::Statuses) to local Pay::Subscription statuses.
+      # PENDING is the default on creation: the first payment hasn't settled
+      # yet, mirroring Stripe's "incomplete".
+      API_STATUS_MAP = {
+        "PENDING" => "incomplete",
+        "PAID" => "active",
+        "CANCELLED" => "canceled",
+        "EXPIRED" => "canceled",
+        "REFUNDED" => "canceled"
+      }.freeze
+
+      store_accessor :data, :checkout_url
+
       def self.sync(processor_id, event: nil)
         return if processor_id.blank?
 

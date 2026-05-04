@@ -54,6 +54,30 @@ module Pay
           entry = ProcessedWebhook.find_by!(event_type: "subscription.completed", event_id: "log_completed_abc123")
           assert entry.processed_at.present?
         end
+
+        # Cross-flow with Customer#subscribe: when the eager record exists from
+        # subscribe (status "incomplete"), the webhook updates the same row to
+        # "active" and rewrites period_*. No duplicate Pay::Subscription.
+        test "updates an eager Pay::Subscription created by Customer#subscribe in place" do
+          eager = Pay::Abacatepay::Subscription.create!(
+            customer: @pay_customer,
+            processor_id: "subs_tAFqDWBhcEYTjQh2K0ZYDHau",
+            name: "Pro",
+            processor_plan: "prod_bx4BstRWhQ2SUcKsPt4c6pmq",
+            status: "incomplete",
+            current_period_start: Time.current,
+            current_period_end: nil
+          )
+
+          assert_no_difference "Pay::Subscription.count" do
+            SubscriptionCompleted.new.call(fixture)
+          end
+
+          eager.reload
+          assert_equal "active", eager.status
+          assert eager.current_period_end.present?
+          assert_equal "prod_bx4BstRWhQ2SUcKsPt4c6pmq", eager.processor_plan
+        end
       end
     end
   end

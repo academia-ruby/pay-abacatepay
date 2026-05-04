@@ -16,6 +16,7 @@ module Pay
     # live in app/models/pay/abacatepay/ — Zeitwerk autoloads them from the host
     # app, which is required so STI subclasses get reloaded together with their
     # superclass (Pay::Customer/Charge/...) during dev reloads.
+    autoload :Frequency, "pay/abacatepay/frequency"
     autoload :Webhooks, "pay/abacatepay/webhooks"
 
     # Enabled when the processor is registered and the SDK constant is present.
