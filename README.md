@@ -150,21 +150,22 @@ The migration creates `pay_abacatepay_processed_webhooks`, a permanent table wit
 
 ### Creating a subscription
 
-`Customer#subscribe` creates the subscription on AbacatePay and returns a `Pay::Abacatepay::Subscription` persisted as `"incomplete"`. Redirect the payer to `subscription.checkout_url` to complete the first payment; the `subscription.completed` webhook then flips the local status to `"active"` and fills in `current_period_*`.
+`Customer#subscribe` creates the subscription on AbacatePay and returns a `Pay::Abacatepay::Subscription` persisted with the status mapped from AbacatePay's response. In the typical flow the subscription comes back as `PENDING` (mapped to `"incomplete"`); redirect the payer to `subscription.checkout_url` to complete the first payment, and the `subscription.completed` webhook then flips the local status to `"active"` and fills in `current_period_*`. If AbacatePay responds with `PAID` (e.g., a saved payment method settled immediately), `subscribe` returns the subscription already as `"active"`.
 
 ```ruby
 subscription = user.payment_processor.subscribe(
   name: "Pro",
   plan: "prod_xxx",                   # AbacatePay product_id (must exist with cycle set)
   cycle: "MONTHLY",                   # optional; sets an optimistic current_period_end
-  methods: ["PIX", "CARD"],           # defaults shown
+  methods: ["PIX", "CARD"],           # defaults shown; a single string is also accepted and normalized
+  quantity: 1,                        # default; positive integer
   external_id: "order-1234",          # optional
   metadata: {release_id: order.id}    # local-only, not yet sent to AbacatePay
 )
 
-redirect_to subscription.checkout_url # first payment
+redirect_to subscription.checkout_url # first payment (when status is "incomplete")
 subscription.processor_id             # "subs_xxx"
-subscription.status                   # "incomplete" until subscription.completed webhook
+subscription.status                   # usually "incomplete" → flipped to "active" by webhook; can be "active" already if the API returned PAID
 ```
 
 `plan` is the AbacatePay `product_id`. Cycle is a Product property, not a Subscription property — pass `cycle:` here purely so the gem can compute `current_period_end` immediately; otherwise it stays `nil` until the webhook arrives.
@@ -175,7 +176,7 @@ Trial periods are unsupported: passing `trial_period_days:` or `trial_end:` rais
 
 | Operation | Support |
 |---|---|
-| `Customer#subscribe` (create subscription from code) | yes (PIX/CARD; no trial; `cycle:` optional) |
+| `Customer#subscribe` (create subscription from code) | yes (PIX/CARD; no trial; `cycle:` and `quantity:` optional) |
 | Webhook-driven `Pay::Subscription` create/update | yes |
 | `Pay::Charge` creation per renewal | yes, idempotent via `processor_id = data.payment.id` |
 | `#cancel_now!` (immediate cancellation) | yes (calls `POST /v2/subscriptions/cancel` directly — SDK does not cover) |

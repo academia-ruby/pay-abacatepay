@@ -424,6 +424,63 @@ module Pay
         result = @user.payment_processor.subscribe(plan: "prod_pro")
         assert_equal "active", result.status
       end
+
+      test "#subscribe persists quantity locally and forwards it to AbacatePay" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub = stub_request(:post, SUBSCRIPTION_CREATE_URL)
+          .with(body: hash_including("items" => [hash_including("quantity" => 3)]))
+          .to_return(
+            status: 200,
+            headers: {"Content-Type" => "application/json"},
+            body: {data: {id: "subs_qty", url: "https://app.abacatepay.com/pay/subs_qty", status: "PENDING"}}.to_json
+          )
+
+        result = @user.payment_processor.subscribe(plan: "prod_pro", quantity: 3)
+
+        assert_requested stub
+        assert_equal 3, result.quantity
+      end
+
+      test "#subscribe defaults quantity to 1 locally" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub_subscription_create(id: "subs_q1")
+        result = @user.payment_processor.subscribe(plan: "prod_pro")
+        assert_equal 1, result.quantity
+      end
+
+      test "#subscribe raises on invalid quantity, without hitting the API" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub = stub_request(:post, SUBSCRIPTION_CREATE_URL)
+
+        [0, -1, 1.5, "2", nil].each do |bad|
+          error = assert_raises(Pay::Abacatepay::Error) { @user.payment_processor.subscribe(plan: "prod_pro", quantity: bad) }
+          assert_match(/positive integer/, error.message)
+        end
+        assert_not_requested stub
+      end
+
+      test "#subscribe normalizes a single-string methods argument into an array" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub = stub_request(:post, SUBSCRIPTION_CREATE_URL)
+          .with(body: hash_including("methods" => ["PIX"]))
+          .to_return(
+            status: 200,
+            headers: {"Content-Type" => "application/json"},
+            body: {data: {id: "subs_strmethods", url: "https://app.abacatepay.com/pay/subs_strmethods", status: "PENDING"}}.to_json
+          )
+
+        @user.payment_processor.subscribe(plan: "prod_pro", methods: "PIX")
+
+        assert_requested stub
+      end
+
+      test "#subscribe raises when methods normalizes to empty (e.g., array of blanks)" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub = stub_request(:post, SUBSCRIPTION_CREATE_URL)
+
+        assert_raises(Pay::Abacatepay::Error) { @user.payment_processor.subscribe(plan: "prod_pro", methods: ["", nil]) }
+        assert_not_requested stub
+      end
     end
   end
 end

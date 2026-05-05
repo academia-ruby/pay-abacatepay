@@ -5,7 +5,7 @@
 ## [0.1.0.pre.3]
 
 ### Added
-- `Pay::Abacatepay::Customer#subscribe(name:, plan:, methods:, external_id:, metadata:, cycle:)` — creates an AbacatePay subscription and persists a `Pay::Abacatepay::Subscription` (status `"incomplete"`) eagerly. Reconciled to `"active"` by the `subscription.completed` webhook on the same `processor_id`.
+- `Pay::Abacatepay::Customer#subscribe(name:, plan:, methods:, quantity:, external_id:, metadata:, cycle:)` — creates an AbacatePay subscription and persists a `Pay::Abacatepay::Subscription` eagerly. Status is mapped from the API response: `PENDING` → `"incomplete"` (the typical case, reconciled to `"active"` by the `subscription.completed` webhook on the same `processor_id`); `PAID` → `"active"` already on return. `methods` accepts either an array or a single string (normalized); `quantity` defaults to `1` and must be a positive integer.
 - `Pay::Abacatepay::Frequency` module with `INTERVALS`, `to_interval`, `valid?` — single source of truth shared by `Webhooks::Event#interval` and `Customer#subscribe`.
 - `Pay::Abacatepay::Subscription#checkout_url` (via `store_accessor :data, :checkout_url`) so callers can redirect the payer to the first-payment URL after `subscribe`.
 

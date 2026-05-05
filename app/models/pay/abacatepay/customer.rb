@@ -74,11 +74,12 @@ module Pay
         raise Pay::Abacatepay::Error, e.message
       end
 
-      def subscribe(name: Pay.default_product_name, plan: nil, methods: ["PIX", "CARD"], external_id: nil, metadata: nil, cycle: nil, **options)
-        validate_subscribe_args!(plan: plan, methods: methods, cycle: cycle, options: options)
+      def subscribe(name: Pay.default_product_name, plan: nil, methods: ["PIX", "CARD"], quantity: 1, external_id: nil, metadata: nil, cycle: nil, **options)
+        methods = Array(methods).reject(&:blank?)
+        validate_subscribe_args!(plan: plan, methods: methods, quantity: quantity, cycle: cycle, options: options)
         api_record unless processor_id?
 
-        resource = build_subscription_resource(plan: plan, methods: methods, external_id: external_id, quantity: options[:quantity] || 1)
+        resource = build_subscription_resource(plan: plan, methods: methods, external_id: external_id, quantity: quantity)
         created = ::AbacatePay.subscriptions.create(resource)
 
         period_start = Time.current
@@ -88,6 +89,7 @@ module Pay
         pay_subscription.assign_attributes(
           name: name,
           processor_plan: plan,
+          quantity: quantity,
           status: Pay::Abacatepay::Subscription::API_STATUS_MAP[created.status&.to_s&.upcase] || "incomplete",
           current_period_start: period_start,
           current_period_end: period_end,
@@ -107,9 +109,13 @@ module Pay
 
       private
 
-      def validate_subscribe_args!(plan:, methods:, cycle:, options:)
+      def validate_subscribe_args!(plan:, methods:, quantity:, cycle:, options:)
         raise Pay::Abacatepay::Error, "plan is required (AbacatePay product_id)" if plan.blank?
-        raise Pay::Abacatepay::Error, "methods cannot be empty" if Array(methods).empty?
+        raise Pay::Abacatepay::Error, "methods cannot be empty" if methods.empty?
+
+        unless quantity.is_a?(Integer) && quantity.positive?
+          raise Pay::Abacatepay::Error, "quantity must be a positive integer (got #{quantity.inspect})"
+        end
 
         if cycle && !Pay::Abacatepay::Frequency.valid?(cycle)
           raise Pay::Abacatepay::Error,
