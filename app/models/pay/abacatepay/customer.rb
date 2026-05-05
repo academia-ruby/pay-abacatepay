@@ -74,8 +74,33 @@ module Pay
         raise Pay::Abacatepay::Error, e.message
       end
 
-      def subscribe(name: Pay.default_product_name, plan: Pay.default_plan_name, **options)
-        raise NotImplementedError, "Pay::Abacatepay::Customer#subscribe is planned for a future release"
+      def subscribe(name: Pay.default_product_name, plan: nil, methods: ["PIX", "CARD"], quantity: 1, external_id: nil, metadata: nil, cycle: nil, **options)
+        methods = Array(methods).reject(&:blank?)
+        validate_subscribe_args!(plan: plan, methods: methods, quantity: quantity, cycle: cycle, options: options)
+        api_record unless processor_id?
+
+        resource = build_subscription_resource(plan: plan, methods: methods, external_id: external_id, quantity: quantity)
+        created = ::AbacatePay.subscriptions.create(resource)
+
+        period_start = Time.current
+        period_end = cycle ? period_start + Pay::Abacatepay::Frequency.to_interval(cycle) : nil
+
+        pay_subscription = Pay::Abacatepay::Subscription.find_or_initialize_by(customer: self, processor_id: created.id)
+        pay_subscription.assign_attributes(
+          name: name,
+          processor_plan: plan,
+          quantity: quantity,
+          status: Pay::Abacatepay::Subscription::API_STATUS_MAP[created.status&.to_s&.upcase] || "incomplete",
+          current_period_start: period_start,
+          current_period_end: period_end,
+          checkout_url: created.url
+        )
+        pay_subscription.metadata = metadata if metadata.present?
+        pay_subscription.save!
+
+        pay_subscription
+      rescue ::AbacatePay::Error => e
+        raise Pay::Abacatepay::Error, e.message
       end
 
       def add_payment_method(payment_method_id, default: false)
@@ -83,6 +108,34 @@ module Pay
       end
 
       private
+
+      def validate_subscribe_args!(plan:, methods:, quantity:, cycle:, options:)
+        raise Pay::Abacatepay::Error, "plan is required (AbacatePay product_id)" if plan.blank?
+        raise Pay::Abacatepay::Error, "methods cannot be empty" if methods.empty?
+
+        unless quantity.is_a?(Integer) && quantity.positive?
+          raise Pay::Abacatepay::Error, "quantity must be a positive integer (got #{quantity.inspect})"
+        end
+
+        if cycle && !Pay::Abacatepay::Frequency.valid?(cycle)
+          raise Pay::Abacatepay::Error,
+            "invalid cycle: #{cycle.inspect}. Use one of: #{Pay::Abacatepay::Frequency::INTERVALS.keys.join(", ")}"
+        end
+
+        if options.key?(:trial_period_days) || options.key?(:trial_end)
+          raise Pay::Abacatepay::Error,
+            "AbacatePay does not support trial periods; remove trial_period_days/trial_end"
+        end
+      end
+
+      def build_subscription_resource(plan:, methods:, external_id:, quantity:)
+        ::AbacatePay::Resources::Subscriptions.new(
+          methods: methods,
+          externalId: external_id,
+          customer: {id: processor_id},
+          products: [{externalId: plan, quantity: quantity}]
+        )
+      end
 
       def create_one_time_product(amount, product_name)
         resource = ::AbacatePay::Resources::Products.new(

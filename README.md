@@ -12,7 +12,7 @@ AbacatePay processor for the [Pay gem](https://github.com/pay-rails/pay) (Rails 
 - [x] Customer creation
 - [x] One-time charges — hosted checkout via `Customer#charge` + `checkout.*` webhooks
 - [ ] Transparent PIX (QR Code inline) — planned (Fase 5)
-- [x] Subscriptions — webhook-driven lifecycle + cancel (gaps below)
+- [x] Subscriptions — `Customer#subscribe` + webhook-driven lifecycle + cancel (gaps below)
 - [x] Webhooks — infrastructure + subscription and checkout handlers
 - [ ] Chargeback/dispute handling — planned (Fase 5)
 - [ ] Payment methods — planned
@@ -148,10 +148,35 @@ bin/rails db:migrate
 
 The migration creates `pay_abacatepay_processed_webhooks`, a permanent table with a unique `(event_type, event_id)` index. It protects against double-processing on AbacatePay retries — `Pay::Webhook` records are destroyed after processing, so without this table a retry that arrives after the original ACK would create a duplicate `Pay::Charge`.
 
+### Creating a subscription
+
+`Customer#subscribe` creates the subscription on AbacatePay and returns a `Pay::Abacatepay::Subscription` persisted with the status mapped from AbacatePay's response. In the typical flow the subscription comes back as `PENDING` (mapped to `"incomplete"`); redirect the payer to `subscription.checkout_url` to complete the first payment, and the `subscription.completed` webhook then flips the local status to `"active"` and fills in `current_period_*`. If AbacatePay responds with `PAID` (e.g., a saved payment method settled immediately), `subscribe` returns the subscription already as `"active"`.
+
+```ruby
+subscription = user.payment_processor.subscribe(
+  name: "Pro",
+  plan: "prod_xxx",                   # AbacatePay product_id (must exist with cycle set)
+  cycle: "MONTHLY",                   # optional; sets an optimistic current_period_end
+  methods: ["PIX", "CARD"],           # defaults shown; a single string is also accepted and normalized
+  quantity: 1,                        # default; positive integer
+  external_id: "order-1234",          # optional
+  metadata: {release_id: order.id}    # local-only, not yet sent to AbacatePay
+)
+
+redirect_to subscription.checkout_url # first payment (when status is "incomplete")
+subscription.processor_id             # "subs_xxx"
+subscription.status                   # usually "incomplete" → flipped to "active" by webhook; can be "active" already if the API returned PAID
+```
+
+`plan` is the AbacatePay `product_id`. Cycle is a Product property, not a Subscription property — pass `cycle:` here purely so the gem can compute `current_period_end` immediately; otherwise it stays `nil` until the webhook arrives.
+
+Trial periods are unsupported: passing `trial_period_days:` or `trial_end:` raises `Pay::Abacatepay::Error`. AbacatePay simply has no trial primitive, and silently dropping it would charge the customer immediately — fail-fast surfaces the divergence.
+
 ### Supported operations
 
 | Operation | Support |
 |---|---|
+| `Customer#subscribe` (create subscription from code) | yes (PIX/CARD; no trial; `cycle:` and `quantity:` optional) |
 | Webhook-driven `Pay::Subscription` create/update | yes |
 | `Pay::Charge` creation per renewal | yes, idempotent via `processor_id = data.payment.id` |
 | `#cancel_now!` (immediate cancellation) | yes (calls `POST /v2/subscriptions/cancel` directly — SDK does not cover) |
@@ -162,10 +187,13 @@ The migration creates `pay_abacatepay_processed_webhooks`, a permanent table wit
 AbacatePay's API is narrower than Stripe's, so several `Pay::Subscription` affordances are intentionally not implemented:
 
 - **No cancel-at-period-end.** AbacatePay cancels immediately. `#cancel` delegates to `#cancel_now!` and logs a warning so code paths that assume Stripe-like grace periods notice the divergence.
-- **No plan swap.** `#swap` raises `NotImplementedError`. Cancel and create a new subscription instead.
+- **No trial periods.** Passing `trial_period_days:` or `trial_end:` to `Customer#subscribe` raises `Pay::Abacatepay::Error`.
+- **Cycle is a Product property.** Pass `cycle:` to `subscribe` for an immediate `current_period_end`; otherwise it stays `nil` until the `subscription.completed` webhook arrives.
+- **`metadata` not yet sent to AbacatePay.** `Customer#subscribe(metadata:)` stores values locally on `Pay::Subscription#metadata` only — the SDK's `SubscriptionClient#create` doesn't include `metadata` in the request body yet. Pending upstream PR.
+- **No plan swap.** `#swap` raises `NotImplementedError`. Cancel and create a new subscription instead. (AbacatePay added `POST /v2/subscriptions/change-plan` on 2026-05-04 — implementation pending.)
 - **No resume.** `#resume` raises `NotImplementedError`. Cancelled subscriptions cannot be reactivated.
 - **No quantity changes.** `#change_quantity` raises `NotImplementedError`.
-- **No `past_due` state.** AbacatePay does not emit payment-failure events, so `#past_due?` always returns `false`.
+- **No `past_due` state.** `#past_due?` always returns `false`. (AbacatePay added `subscription.payment_failed` on 2026-04-29 — handler implementation pending.)
 - **No `Subscriptions.retrieve` / `Subscriptions.cancel` in the SDK (v0.2.x).** Both calls are made via the SDK's Faraday client directly. Filed upstream.
 - **`subscription.trial_started`.** Handler is registered but raises `NotImplementedError` — the event is not listed in `AbacatePay::Enums::Webhooks::EventTypes`, so we fail-loud until it is confirmed.
 

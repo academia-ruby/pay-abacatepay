@@ -2,13 +2,6 @@ module Pay
   module Abacatepay
     module Webhooks
       class Event
-        FREQUENCY_TO_INTERVAL = {
-          "WEEKLY" => 1.week,
-          "MONTHLY" => 1.month,
-          "SEMIANNUALLY" => 6.months,
-          "ANNUALLY" => 1.year
-        }.freeze
-
         def initialize(raw)
           @raw = raw.is_a?(Hash) ? raw : {}
         end
@@ -80,7 +73,7 @@ module Pay
         def product_id = data.dig("checkout", "items", 0, "id")
 
         def interval
-          FREQUENCY_TO_INTERVAL[frequency]
+          Pay::Abacatepay::Frequency.to_interval(frequency)
         end
 
         private

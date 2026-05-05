@@ -274,6 +274,213 @@ module Pay
         assert_requested create_stub
         assert_equal "cust_autogen", @user.payment_processor.reload.processor_id
       end
+
+      # Customer#subscribe (recurring) — Fase 5
+
+      SUBSCRIPTION_CREATE_URL = "https://api.abacatepay.com/v2/subscriptions/create"
+
+      def stub_subscription_create(id: "subs_new1", url: "https://app.abacatepay.com/pay/subs_new1", status: "PENDING", customer_id: "cust_sub1")
+        stub_request(:post, SUBSCRIPTION_CREATE_URL)
+          .to_return(
+            status: 200,
+            headers: {"Content-Type" => "application/json"},
+            body: {
+              data: {
+                id: id,
+                url: url,
+                status: status,
+                methods: ["PIX", "CARD"],
+                customer: {id: customer_id},
+                products: [{externalId: "prod_pro", name: "Pro", quantity: 1, price: 4990}]
+              }
+            }.to_json
+          )
+      end
+
+      test "#subscribe creates subscription, persists Pay::Subscription as incomplete and returns it" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        sub_stub = stub_subscription_create(id: "subs_new1")
+
+        result = @user.payment_processor.subscribe(name: "Pro", plan: "prod_pro", cycle: "MONTHLY")
+
+        assert_requested sub_stub
+        assert_instance_of Pay::Abacatepay::Subscription, result
+        assert_equal "subs_new1", result.processor_id
+        assert_equal "prod_pro", result.processor_plan
+        assert_equal "Pro", result.name
+        assert_equal "incomplete", result.status
+        assert_equal "https://app.abacatepay.com/pay/subs_new1", result.checkout_url
+        assert result.current_period_start.present?
+        assert_in_delta (Time.current + 1.month).to_i, result.current_period_end.to_i, 5
+        assert_equal "Pay::Abacatepay::Subscription", Pay::Subscription.last.type
+      end
+
+      test "#subscribe leaves current_period_end nil when cycle is omitted" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub_subscription_create(id: "subs_nocycle")
+
+        result = @user.payment_processor.subscribe(plan: "prod_pro")
+
+        assert_nil result.current_period_end
+      end
+
+      test "#subscribe creates customer via api_record when processor_id is absent" do
+        create_stub = stub_request(:post, CREATE_URL)
+          .to_return(
+            status: 200,
+            headers: {"Content-Type" => "application/json"},
+            body: {data: {id: "cust_autogen", metadata: {email: "test-customer@example.com"}}}.to_json
+          )
+        stub_subscription_create(customer_id: "cust_autogen")
+
+        @user.payment_processor.subscribe(plan: "prod_pro")
+
+        assert_requested create_stub
+        assert_equal "cust_autogen", @user.payment_processor.reload.processor_id
+      end
+
+      test "#subscribe wraps SDK errors in Pay::Abacatepay::Error" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub_request(:post, SUBSCRIPTION_CREATE_URL)
+          .to_return(status: 500, body: {error: "boom"}.to_json, headers: {"Content-Type" => "application/json"})
+
+        assert_raises(Pay::Abacatepay::Error) { @user.payment_processor.subscribe(plan: "prod_pro") }
+        assert_equal 0, Pay::Abacatepay::Subscription.count
+      end
+
+      test "#subscribe raises when plan is blank, without hitting the API" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub = stub_request(:post, SUBSCRIPTION_CREATE_URL)
+
+        assert_raises(Pay::Abacatepay::Error) { @user.payment_processor.subscribe(plan: nil) }
+        assert_raises(Pay::Abacatepay::Error) { @user.payment_processor.subscribe(plan: "") }
+        assert_not_requested stub
+      end
+
+      test "#subscribe raises when methods is empty, without hitting the API" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub = stub_request(:post, SUBSCRIPTION_CREATE_URL)
+
+        assert_raises(Pay::Abacatepay::Error) { @user.payment_processor.subscribe(plan: "prod_pro", methods: []) }
+        assert_not_requested stub
+      end
+
+      test "#subscribe raises on invalid cycle, without hitting the API" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub = stub_request(:post, SUBSCRIPTION_CREATE_URL)
+
+        error = assert_raises(Pay::Abacatepay::Error) { @user.payment_processor.subscribe(plan: "prod_pro", cycle: "DAILY") }
+        assert_match(/invalid cycle/, error.message)
+        assert_not_requested stub
+      end
+
+      test "#subscribe raises when trial_period_days is passed" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub = stub_request(:post, SUBSCRIPTION_CREATE_URL)
+
+        error = assert_raises(Pay::Abacatepay::Error) do
+          @user.payment_processor.subscribe(plan: "prod_pro", trial_period_days: 7)
+        end
+        assert_match(/trial/, error.message)
+        assert_not_requested stub
+      end
+
+      test "#subscribe is idempotent on duplicate processor_id (find_or_initialize)" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub_subscription_create(id: "subs_dup")
+        first = @user.payment_processor.subscribe(plan: "prod_pro")
+        stub_subscription_create(id: "subs_dup")
+        second = @user.payment_processor.subscribe(plan: "prod_pro")
+
+        assert_equal first.id, second.id
+        assert_equal 1, Pay::Abacatepay::Subscription.where(processor_id: "subs_dup").count
+      end
+
+      test "#subscribe stores app-level metadata on Pay::Subscription.metadata" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub_subscription_create(id: "subs_meta")
+
+        result = @user.payment_processor.subscribe(
+          plan: "prod_pro",
+          metadata: {release_id: 42, release_slug: "release-x"}
+        )
+
+        assert_equal 42, result.metadata["release_id"]
+        assert_equal "release-x", result.metadata["release_slug"]
+      end
+
+      test "#subscribe omits metadata locally when not provided" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub_subscription_create(id: "subs_nometa")
+
+        result = @user.payment_processor.subscribe(plan: "prod_pro")
+
+        assert_nil result.metadata
+      end
+
+      test "#subscribe maps API status PAID to active and PENDING to incomplete" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub_subscription_create(id: "subs_paid", status: "PAID")
+        result = @user.payment_processor.subscribe(plan: "prod_pro")
+        assert_equal "active", result.status
+      end
+
+      test "#subscribe persists quantity locally and forwards it to AbacatePay" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub = stub_request(:post, SUBSCRIPTION_CREATE_URL)
+          .with(body: hash_including("items" => [hash_including("quantity" => 3)]))
+          .to_return(
+            status: 200,
+            headers: {"Content-Type" => "application/json"},
+            body: {data: {id: "subs_qty", url: "https://app.abacatepay.com/pay/subs_qty", status: "PENDING"}}.to_json
+          )
+
+        result = @user.payment_processor.subscribe(plan: "prod_pro", quantity: 3)
+
+        assert_requested stub
+        assert_equal 3, result.quantity
+      end
+
+      test "#subscribe defaults quantity to 1 locally" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub_subscription_create(id: "subs_q1")
+        result = @user.payment_processor.subscribe(plan: "prod_pro")
+        assert_equal 1, result.quantity
+      end
+
+      test "#subscribe raises on invalid quantity, without hitting the API" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub = stub_request(:post, SUBSCRIPTION_CREATE_URL)
+
+        [0, -1, 1.5, "2", nil].each do |bad|
+          error = assert_raises(Pay::Abacatepay::Error) { @user.payment_processor.subscribe(plan: "prod_pro", quantity: bad) }
+          assert_match(/positive integer/, error.message)
+        end
+        assert_not_requested stub
+      end
+
+      test "#subscribe normalizes a single-string methods argument into an array" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub = stub_request(:post, SUBSCRIPTION_CREATE_URL)
+          .with(body: hash_including("methods" => ["PIX"]))
+          .to_return(
+            status: 200,
+            headers: {"Content-Type" => "application/json"},
+            body: {data: {id: "subs_strmethods", url: "https://app.abacatepay.com/pay/subs_strmethods", status: "PENDING"}}.to_json
+          )
+
+        @user.payment_processor.subscribe(plan: "prod_pro", methods: "PIX")
+
+        assert_requested stub
+      end
+
+      test "#subscribe raises when methods normalizes to empty (e.g., array of blanks)" do
+        @user.payment_processor.update!(processor_id: "cust_sub1")
+        stub = stub_request(:post, SUBSCRIPTION_CREATE_URL)
+
+        assert_raises(Pay::Abacatepay::Error) { @user.payment_processor.subscribe(plan: "prod_pro", methods: ["", nil]) }
+        assert_not_requested stub
+      end
     end
   end
 end
