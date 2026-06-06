@@ -268,6 +268,21 @@ module Pay
         assert_requested checkout_stub
       end
 
+      test "#charge omits coupons from the request body when given an empty array" do
+        @user.payment_processor.update!(processor_id: "cust_charge1")
+        checkout_stub = stub_request(:post, CHECKOUT_CREATE_URL)
+          .with { |req| !JSON.parse(req.body).key?("coupons") }
+          .to_return(
+            status: 200,
+            headers: {"Content-Type" => "application/json"},
+            body: {data: {id: "chk_emptycoupon", url: "https://app.abacatepay.com/pay/chk_emptycoupon", status: "PENDING"}}.to_json
+          )
+
+        @user.payment_processor.charge(5000, product_id: "prod_existing", coupons: [])
+
+        assert_requested checkout_stub
+      end
+
       # ── VCR-backed: full charge round-trip in sandbox ──
       # Stubs SecureRandom + Time.current so that externalId/external_id are
       # deterministic across runs and the body matches the cassette exactly.
