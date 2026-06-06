@@ -238,6 +238,51 @@ module Pay
         assert_nil result.charge.metadata
       end
 
+      test "#charge forwards coupons to the checkout create request body" do
+        @user.payment_processor.update!(processor_id: "cust_charge1")
+        checkout_stub = stub_request(:post, CHECKOUT_CREATE_URL)
+          .with { |req| JSON.parse(req.body)["coupons"] == ["LANCAMENTO"] }
+          .to_return(
+            status: 200,
+            headers: {"Content-Type" => "application/json"},
+            body: {data: {id: "chk_coupon", url: "https://app.abacatepay.com/pay/chk_coupon", status: "PENDING"}}.to_json
+          )
+
+        @user.payment_processor.charge(5000, product_id: "prod_existing", coupons: ["LANCAMENTO"])
+
+        assert_requested checkout_stub
+      end
+
+      test "#charge omits coupons from the request body when not provided" do
+        @user.payment_processor.update!(processor_id: "cust_charge1")
+        checkout_stub = stub_request(:post, CHECKOUT_CREATE_URL)
+          .with { |req| !JSON.parse(req.body).key?("coupons") }
+          .to_return(
+            status: 200,
+            headers: {"Content-Type" => "application/json"},
+            body: {data: {id: "chk_nocoupon", url: "https://app.abacatepay.com/pay/chk_nocoupon", status: "PENDING"}}.to_json
+          )
+
+        @user.payment_processor.charge(5000, product_id: "prod_existing")
+
+        assert_requested checkout_stub
+      end
+
+      test "#charge omits coupons from the request body when given an empty array" do
+        @user.payment_processor.update!(processor_id: "cust_charge1")
+        checkout_stub = stub_request(:post, CHECKOUT_CREATE_URL)
+          .with { |req| !JSON.parse(req.body).key?("coupons") }
+          .to_return(
+            status: 200,
+            headers: {"Content-Type" => "application/json"},
+            body: {data: {id: "chk_emptycoupon", url: "https://app.abacatepay.com/pay/chk_emptycoupon", status: "PENDING"}}.to_json
+          )
+
+        @user.payment_processor.charge(5000, product_id: "prod_existing", coupons: [])
+
+        assert_requested checkout_stub
+      end
+
       # ── VCR-backed: full charge round-trip in sandbox ──
       # Stubs SecureRandom + Time.current so that externalId/external_id are
       # deterministic across runs and the body matches the cassette exactly.

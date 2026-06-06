@@ -44,7 +44,7 @@ module Pay
 
       CheckoutResult = Struct.new(:id, :url, :charge, keyword_init: true)
 
-      def charge(amount, product_id: nil, methods: ["PIX", "CARD"], return_url: nil, completion_url: nil, external_id: nil, product_name: "Cobrança avulsa", metadata: nil)
+      def charge(amount, product_id: nil, methods: ["PIX", "CARD"], return_url: nil, completion_url: nil, external_id: nil, product_name: "Cobrança avulsa", metadata: nil, coupons: nil)
         api_record unless processor_id?
 
         product_id ||= create_one_time_product(amount, product_name)
@@ -54,7 +54,8 @@ module Pay
           methods: methods,
           return_url: return_url,
           completion_url: completion_url,
-          external_id: external_id
+          external_id: external_id,
+          coupons: coupons
         )
         created = ::AbacatePay.checkouts.create(resource)
 
@@ -148,14 +149,15 @@ module Pay
         created.id
       end
 
-      def build_checkout_resource(product_id:, quantity:, methods:, return_url:, completion_url:, external_id:)
+      def build_checkout_resource(product_id:, quantity:, methods:, return_url:, completion_url:, external_id:, coupons: nil)
         ::AbacatePay::Resources::Checkouts.new(
           frequency: "ONE_TIME",
           methods: methods,
           metadata: {returnUrl: return_url, completionUrl: completion_url}.compact,
           products: [{externalId: product_id, quantity: quantity}],
           customer: {id: processor_id},
-          externalId: external_id
+          externalId: external_id,
+          coupons: coupons.presence
         )
       end
 

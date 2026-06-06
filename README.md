@@ -88,13 +88,16 @@ result = user.payment_processor.charge(
   methods: ["PIX", "CARD"],                  # defaults shown
   return_url: "https://app.example.com/cart",
   completion_url: "https://app.example.com/thanks",
-  external_id: "order-1234"                  # optional, for your reconciliation
+  external_id: "order-1234",                 # optional, for your reconciliation
+  coupons: ["LANCAMENTO"]                    # optional promo codes; omitted when blank
 )
 
 redirect_to result.url                       # send the user to AbacatePay
 result.id                                    # "chk_xxx" — also result.charge.processor_id
 result.charge                                # Pay::Abacatepay::Charge, status: "pending"
 ```
+
+Coupon codes passed via `coupons:` are forwarded to `/checkouts/create`; AbacatePay validates them (existence/eligibility). When the argument is blank, the key is omitted from the request body entirely.
 
 ### Product on-the-fly
 

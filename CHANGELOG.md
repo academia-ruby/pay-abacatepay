@@ -24,3 +24,4 @@
 - Document validation (`document`/`cpf`/`cnpj`) on billable model
 - Configuration via Rails credentials or environment variables
 - Integration with official `abacatepay-ruby` SDK as HTTP layer
+- Optional `coupons:` kwarg on `Customer#charge`, forwarded to the hosted checkout create call (omitted from the request body when blank)
